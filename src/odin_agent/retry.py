@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import random
 import time
-from typing import Callable, TypeVar, Tuple, Type
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
+
 import httpx
 
 from .exceptions import APIConnectionError, InternalServerError, RateLimitError
@@ -55,11 +57,11 @@ def with_retry(
 
 
 async def with_retry_async(
-    fn: Callable[[], Any],
+    fn: Callable[[], Coroutine[Any, Any, T]],
     max_retries: int = 3,
     base_delay: float = 0.5,
     max_delay: float = 10.0,
-) -> Any:
+) -> T:
     """Execute an asynchronous coroutine with exponential backoff retry."""
     last_err: Exception = Exception("Unknown error")
     for attempt in range(max_retries + 1):
