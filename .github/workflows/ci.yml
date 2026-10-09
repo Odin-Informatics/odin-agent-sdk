@@ -20,16 +20,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install -e .[dev]
 
       - name: Run Ruff Linting
         run: |
           ruff check .
 
+      - name: Run Mypy Type Check
+        run: |
+          mypy src/odin_agent --ignore-missing-imports
+
       - name: Run Unit Tests with Coverage
         run: |
-          pytest -v --tb=short
+          pytest -v --tb=short --cov=odin_agent --cov-report=term-missing --cov-fail-under=80
