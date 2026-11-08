@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -16,7 +18,8 @@ class Role(str, Enum):
 
 class FunctionCall(BaseModel):
     name: str
-    arguments: Dict[str, Any] = Field(default_factory=dict)
+    # OpenAI-compatible servers send arguments as a JSON string; a dict is accepted too.
+    arguments: str | dict[str, Any] = Field(default_factory=dict)
 
 
 class ToolCall(BaseModel):
@@ -27,10 +30,10 @@ class ToolCall(BaseModel):
 
 class Message(BaseModel):
     role: Role
-    content: str
-    name: Optional[str] = None
-    tool_calls: Optional[List[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    content: str = ""
+    name: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
 
 
 class Usage(BaseModel):
@@ -43,12 +46,12 @@ class ModelResponse(BaseModel):
     id: str
     model: str
     message: Message
-    finish_reason: Optional[str] = None
-    usage: Optional[Usage] = None
+    finish_reason: str | None = None
+    usage: Usage | None = None
 
 
 class ToolDefinition(BaseModel):
     name: str
     description: str
-    parameters: Dict[str, Any]
-    handler: Optional[Callable[..., Any]] = None
+    parameters: dict[str, Any]
+    handler: Callable[..., Any] | None = None

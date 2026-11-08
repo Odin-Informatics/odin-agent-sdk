@@ -44,7 +44,7 @@ def with_retry(
             if status == 429:
                 raise RateLimitError("Rate limit exceeded.", status_code=status) from err
             if status >= 500:
-                raise InternalServerError("Odin Cloud internal server error.", status_code=status) from err
+                raise InternalServerError("Server returned an internal error.", status_code=status) from err
             raise
         except (httpx.ConnectError, httpx.TimeoutException) as err:
             if attempt < max_retries:
@@ -52,7 +52,7 @@ def with_retry(
                 time.sleep(delay)
                 last_err = err
                 continue
-            raise APIConnectionError("Failed to connect to Odin API endpoints.") from err
+            raise APIConnectionError("Failed to connect to the configured API endpoint.") from err
     raise last_err
 
 
@@ -77,7 +77,7 @@ async def with_retry_async(
             if status == 429:
                 raise RateLimitError("Rate limit exceeded.", status_code=status) from err
             if status >= 500:
-                raise InternalServerError("Odin Cloud internal server error.", status_code=status) from err
+                raise InternalServerError("Server returned an internal error.", status_code=status) from err
             raise
         except (httpx.ConnectError, httpx.TimeoutException) as err:
             if attempt < max_retries:
@@ -85,5 +85,5 @@ async def with_retry_async(
                 await asyncio.sleep(delay)
                 last_err = err
                 continue
-            raise APIConnectionError("Failed to connect to Odin API endpoints.") from err
+            raise APIConnectionError("Failed to connect to the configured API endpoint.") from err
     raise last_err

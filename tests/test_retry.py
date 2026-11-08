@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -10,7 +9,6 @@ import pytest
 
 from odin_agent.exceptions import APIConnectionError, InternalServerError, RateLimitError
 from odin_agent.retry import calculate_backoff, with_retry, with_retry_async
-
 
 # ---------------------------------------------------------------------------
 # calculate_backoff
@@ -204,9 +202,11 @@ async def test_with_retry_async_storm_prevention():
     async def fn():
         raise httpx.HTTPStatusError("Service Unavailable", request=MagicMock(), response=mock_response)
 
-    with patch("odin_agent.retry.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-        with pytest.raises(InternalServerError):
-            await with_retry_async(fn, max_retries=max_retries, base_delay=0.0)
+    with (
+        patch("odin_agent.retry.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        pytest.raises(InternalServerError),
+    ):
+        await with_retry_async(fn, max_retries=max_retries, base_delay=0.0)
 
     assert mock_sleep.call_count == max_retries
 

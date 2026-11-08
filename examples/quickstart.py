@@ -1,53 +1,45 @@
-"""Quickstart example demonstrating Odin Agent SDK usage."""
+"""Quickstart: run against an OpenAI-compatible server you control.
 
-from odin_agent import OdinAgent, OdinClient, Message, Role
+Example with a local Ollama server (nothing leaves your machine):
+    ollama pull llama3.1
+    ODIN_BASE_URL=http://localhost:11434/v1 python examples/quickstart.py
+"""
+
+import os
+
+from odin_agent import Message, OdinAgent, OdinClient, Role
+
+MODEL = os.getenv("ODIN_MODEL", "llama3.1")
 
 
 def main() -> None:
-    # 1. Direct completion using OdinClient
-    client = OdinClient(api_key="your_odin_api_key_here")
+    client = OdinClient()  # reads ODIN_BASE_URL (required) and ODIN_API_KEY (optional)
 
-    print("--- 1. Direct Chat Completion ---")
+    print("--- 1. Single completion ---")
     response = client.chat_complete(
-        messages=[
-            Message(role=Role.USER, content="Odin mimarisi hakkında kısa bilgi ver.")
-        ],
-        model="odin-v2-chat",
+        messages=[Message(role=Role.USER, content="Bir cümleyle kendini tanıt.")],
+        model=MODEL,
     )
-    print("Response:", response.message.content)
+    print(response.message.content)
 
-    # 2. Autonomous Agent with custom tool registration
-    print("\n--- 2. Autonomous Agent with Tools ---")
-    agent = OdinAgent(
-        name="InventoryBot",
-        system_prompt="Sen Odin POS ve ERP sistemlerine entegre stok asistanısın.",
-        client=client,
-    )
+    print("\n--- 2. Agent with a local tool ---")
+    agent = OdinAgent(model=MODEL, client=client, system_prompt="Sen bir stok asistanısın.")
 
-    # Define a tool handler
     def check_stock(product_code: str) -> dict:
-        """Simulated inventory lookup"""
+        """Demo data; replace with a lookup in your own system."""
         return {"product_code": product_code, "in_stock": True, "quantity": 42}
 
-    # Register the tool
     agent.register_tool(
         name="check_stock",
-        description="Verilen ürün kodunun güncel stok adedini sorgular.",
+        description="Verilen ürün kodunun stok adedini döndürür.",
         parameters={
             "type": "object",
-            "properties": {
-                "product_code": {
-                    "type": "string",
-                    "description": "Sorgulanacak ürün barkod veya kodu",
-                }
-            },
+            "properties": {"product_code": {"type": "string", "description": "Ürün kodu"}},
             "required": ["product_code"],
         },
         handler=check_stock,
     )
-
-    answer = agent.run("PRD-102 kodlu ürünün stoğunu kontrol et ve bilgi ver.")
-    print("Agent Result:", answer)
+    print(agent.run("PRD-102 kodlu ürünün stoğu ne durumda?"))
 
 
 if __name__ == "__main__":

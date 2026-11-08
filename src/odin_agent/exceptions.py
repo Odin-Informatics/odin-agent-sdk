@@ -1,13 +1,12 @@
 """Custom exception hierarchy for Odin Agent SDK."""
 
 from __future__ import annotations
-from typing import Optional
 
 
 class OdinError(Exception):
-    """Base exception for all Odin SDK errors."""
+    """Base exception for all odin-agent-sdk errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -34,10 +33,10 @@ class RateLimitError(OdinError):
 
 
 class APIConnectionError(OdinError):
-    """Raised when network or DNS connection to Odin API fails."""
+    """Raised when the configured endpoint cannot be reached."""
     pass
 
 
 class InternalServerError(OdinError):
-    """Raised when Odin Cloud experiences an internal error (HTTP 5xx)."""
+    """Raised when the server returns HTTP 5xx."""
     pass

@@ -1,5 +1,6 @@
-"""Odin Agent SDK - Official Python SDK for Odin AI Models and Intelligent Agents."""
+"""odin-agent-sdk: a small, experimental agent toolkit for OpenAI-compatible chat APIs."""
 
+from ._version import __version__
 from .agent import OdinAgent
 from .client import AsyncOdinClient, OdinClient
 from .exceptions import (
@@ -22,8 +23,8 @@ from .types import (
     Usage,
 )
 
-__version__ = "0.2.0"
 __all__ = [
+    "__version__",
     "OdinAgent",
     "OdinClient",
     "AsyncOdinClient",
