@@ -1,131 +1,93 @@
-# 🤖 Odin Agent SDK (Python)
+# odin-agent-sdk
 
-[![PyPI version](https://img.shields.io/badge/pypi-v0.1.0-blue.svg?style=flat-square)](https://pypi.org/)
-[![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-brightgreen.svg?style=flat-square)](https://python.org)
-[![License](https://img.shields.io/badge/license-Apache--2.0-red.svg?style=flat-square)](LICENSE)
-[![Organization](https://img.shields.io/badge/Odin-Informatics-0F172A?style=flat-square&logo=github)](https://github.com/Odin-Informatics)
+[![CI](https://github.com/Odin-Informatics/odin-agent-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/Odin-Informatics/odin-agent-sdk/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**The Official Python SDK for Odin AI Models, Intelligent Tool-Using Agents, and Enterprise RAG Pipelines.**
+A small, **experimental** Python library for building tool-calling agents on top of any
+**OpenAI-compatible** `/chat/completions` endpoint — for example a local [Ollama](https://ollama.com)
+or [vLLM](https://github.com/vllm-project/vllm) server.
 
-Developed by **[Odin Informatics](https://www.odinbilisim.com)** to provide lightweight, type-safe, and asynchronous building blocks for integrating Odin LLMs into mission-critical production workflows.
+> **Status:** experimental (0.x). The API may change. Not published on PyPI.
+> Odin Bilişim does **not** operate a hosted model or public API for this SDK — you always point it at a
+> server you run or trust. There is no default endpoint and the library sends no telemetry.
 
----
+## What it does
 
-## ✨ Features
+- Sync and async clients with retries and exponential backoff (`OdinClient`, `AsyncOdinClient`)
+- Text streaming (Server-Sent Events)
+- A minimal agent loop (`OdinAgent`) that runs your Python functions when the model asks for them
+- Conversation memory with a sliding window that keeps the system prompt
+- Pydantic v2 models for messages, tool calls and token usage
 
-- ⚡ **Lightweight & High Performance:** Minimal dependencies built on `httpx` and `pydantic`.
-- 🧠 **Autonomous Agent Loop:** Built-in multi-turn reasoning with dynamic tool registration and execution.
-- 🌊 **Real-Time Token Streaming:** Low-latency SSE (Server-Sent Events) streaming support.
-- 🛡️ **Type-Safe Models:** Native Pydantic v2 schemas for all messages, tools, completions, and token usages.
-- 🏢 **Enterprise Ready:** First-class support for Odin POS, ERP, and database tool handlers.
-
----
-
-## 📦 Installation
+## Install (from source)
 
 ```bash
-pip install odin-agent-sdk
+git clone https://github.com/Odin-Informatics/odin-agent-sdk.git
+cd odin-agent-sdk
+pip install -e .            # or: pip install -e ".[dev]" for tests and linters
 ```
 
-Or install with development dependencies:
+Python 3.10+ is required.
 
-```bash
-pip install "odin-agent-sdk[dev]"
-```
-
----
-
-## 🚀 Quickstart
-
-### 1. Basic Chat Completion
+## Quickstart
 
 ```python
-from odin_agent import OdinClient, Message, Role
+from odin_agent import Message, OdinAgent, OdinClient, Role
 
-client = OdinClient(api_key="your_odin_api_key_here")
+# Local Ollama server: nothing leaves your machine
+client = OdinClient(base_url="http://localhost:11434/v1")
 
-response = client.chat_complete(
-    messages=[
-        Message(role=Role.USER, content="Explain the benefits of microservices architecture.")
-    ],
-    model="odin-v2-chat",
-    temperature=0.7,
+reply = client.chat_complete(
+    messages=[Message(role=Role.USER, content="Bir cümleyle kendini tanıt.")],
+    model="llama3.1",
 )
+print(reply.message.content)
 
-print(response.message.content)
+agent = OdinAgent(model="llama3.1", client=client, system_prompt="Sen bir stok asistanısın.")
+
+def check_stock(product_code: str) -> dict:
+    return {"product_code": product_code, "quantity": 42}  # replace with your own lookup
+
+agent.register_tool(
+    name="check_stock",
+    description="Returns the stock level of a product code.",
+    parameters={"type": "object", "properties": {"product_code": {"type": "string"}}, "required": ["product_code"]},
+    handler=check_stock,
+)
+print(agent.run("PRD-102 kodlu ürünün stoğu ne durumda?"))
 ```
 
-### 2. Streaming Responses
+Streaming:
 
 ```python
-for token in client.stream_chat(
-    messages=[Message(role=Role.USER, content="Write a quick Python sort script.")],
-    model="odin-v2-chat",
-):
+for token in client.stream_chat([Message(role=Role.USER, content="Merhaba")], model="llama3.1"):
     print(token, end="", flush=True)
 ```
 
-### 3. Autonomous Tool-Calling Agent
+A runnable version is in [`examples/quickstart.py`](examples/quickstart.py).
 
-```python
-from odin_agent import OdinAgent
+## Configuration
 
-agent = OdinAgent(
-    name="EnterpriseOpsBot",
-    system_prompt="You are an intelligent operations agent for Odin cloud platforms.",
-)
+| Variable | Purpose | Default |
+| :--- | :--- | :--- |
+| `ODIN_BASE_URL` | Base URL of an OpenAI-compatible API, e.g. `http://localhost:11434/v1` | none — **required** (or pass `base_url=`) |
+| `ODIN_API_KEY` | Bearer token, if your server needs one | empty (no `Authorization` header is sent) |
 
-# Define your business tool
-def query_server_metrics(region: str) -> dict:
-    return {"region": region, "cpu_usage": "24%", "status": "healthy"}
+## Security notes
 
-# Register the tool
-agent.register_tool(
-    name="query_server_metrics",
-    description="Fetches real-time server cluster metrics for a specific cloud region.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "region": {"type": "string", "description": "e.g., tr-central-1, eu-west-1"}
-        },
-        "required": ["region"],
-    },
-    handler=query_server_metrics,
-)
+- Tools run **your** Python functions with arguments chosen by the model. Validate inputs inside each
+  handler and never register tools that run shell commands, SQL or file operations without checks.
+- Keep API keys in environment variables, not in code.
 
-# Run the agent
-result = agent.run("Check the health status of the tr-central-1 server cluster.")
-print(result)
+## Development
+
+```bash
+pip install -e ".[dev]"
+ruff check . && mypy src/odin_agent --ignore-missing-imports && pytest --cov=odin_agent
 ```
 
----
+Tests use `httpx.MockTransport`; they make no network calls.
 
-## ⚙️ Configuration & Environment Variables
+## License
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `ODIN_API_KEY` | Your Odin AI Platform API Key | `""` |
-| `ODIN_BASE_URL` | Base API Endpoint URL | `https://api.odinbilisim.com/v1` |
-
----
-
-## 🤝 Contributing
-
-Contributions from the open-source community are welcome! Please follow these guidelines:
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/amazing-feature`).
-3. Run linting and type checks (`ruff check .` && `mypy .`).
-4. Commit your changes (`git commit -m 'feat: add amazing feature'`).
-5. Push to your branch and open a Pull Request.
-
----
-
-## 📄 License
-
-Distributed under the **Apache-2.0 License**. See [LICENSE](LICENSE) for more information.
-
----
-
-<div align="center">
-<sub>Engineered with precision by <strong>Odin Informatics</strong> • <a href="https://www.odinbilisim.com">odinbilisim.com</a></sub>
-</div>
+[Apache-2.0](LICENSE) · Maintained by [Odin Bilişim](https://www.odinbilisim.com), Tekirdağ.

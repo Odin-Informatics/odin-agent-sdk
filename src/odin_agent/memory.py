@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 from .types import Message, Role
 
 
 class ConversationMemory:
     """Manages conversational state with message count limits and system prompt preservation."""
 
-    def __init__(self, max_messages: int = 40, system_prompt: Optional[str] = None) -> None:
+    def __init__(self, max_messages: int = 40, system_prompt: str | None = None) -> None:
         self.max_messages = max_messages
-        self._messages: List[Message] = []
+        self._messages: list[Message] = []
         if system_prompt:
             self._messages.append(Message(role=Role.SYSTEM, content=system_prompt))
 
@@ -20,7 +19,7 @@ class ConversationMemory:
         self._messages.append(message)
         self._truncate_if_needed()
 
-    def get_messages(self) -> List[Message]:
+    def get_messages(self) -> list[Message]:
         """Return the current conversation history."""
         return list(self._messages)
 
